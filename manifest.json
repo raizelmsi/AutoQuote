@@ -1,0 +1,11 @@
+{
+    "display_name": "ST-AutoQuote",
+    "loading_order": 9,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Rai",
+    "version": "1.0.0",
+    "homePage": ""
+}
