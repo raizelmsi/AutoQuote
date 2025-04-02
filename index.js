@@ -2,7 +2,6 @@ import { extension_settings} from "../../../extensions.js";
 
 const extensionName = "AutoQuote";  // Change this to match your extension's folder name
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
-const extensionSettings = extension_settings[extensionName];
 const defaultSettings = {};
 
 // Load settings
