@@ -14,15 +14,17 @@ async function loadSettings() {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
 
-    // Wait for the settings HTML to be added to the DOM
     await waitForElement('#autoquote-toggle');
 
     $('#autoquote-toggle').prop('checked', extension_settings[extensionName].enabled);
 
+    // Toast on manual toggle
     $('#autoquote-toggle').on('change', function () {
         const isEnabled = $(this).is(':checked');
         extension_settings[extensionName].enabled = isEnabled;
         console.debug("AutoQuote setting saved:", isEnabled);
+
+        toastr.info(`AutoQuote ${isEnabled ? "enabled" : "disabled"}`);
     });
 }
 
@@ -42,7 +44,7 @@ function waitForElement(selector) {
 function modifyUserInput() {
     let userInput = String($('#send_textarea').val()).trim();
 
-    // Toggle command: //aq
+    // Toggle via command
     if (userInput === "//aq") {
         const currentState = extension_settings[extensionName].enabled;
         const newState = !currentState;
@@ -50,8 +52,10 @@ function modifyUserInput() {
         $('#autoquote-toggle').prop('checked', newState);
         console.debug("AutoQuote toggled via //aq command:", newState);
 
+        toastr.info(`AutoQuote ${newState ? "enabled" : "disabled"}`);
+
         $('#send_textarea').val('');
-        return false; // Signal to prevent send
+        return false;
     }
 
     if (!extension_settings[extensionName].enabled) {
@@ -87,7 +91,7 @@ function modifyUserInput() {
     $('#send_textarea').val(output);
     console.debug("Modified User Input: ", output);
 
-    return true; // Allow sending
+    return true;
 }
 
 // Hook into the send button and textarea
@@ -97,7 +101,6 @@ jQuery(async () => {
 
     await loadSettings();
 
-    // Click on send button
     $("#send_button").on("click", function (e) {
         const shouldSend = modifyUserInput();
         if (!shouldSend) {
@@ -107,7 +110,6 @@ jQuery(async () => {
         }
     });
 
-    // Pressing Enter in the textarea
     $("#send_textarea").on("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey) {
             const shouldSend = modifyUserInput();
