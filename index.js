@@ -1,26 +1,69 @@
-import { extension_settings} from "../../../extensions.js";
+import { extension_settings } from "../../../extensions.js";
 
-const extensionName = "AutoQuote";  // Change this to match your extension's folder name
+const extensionName = "AutoQuote";
 const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
-const defaultSettings = {};
+const defaultSettings = {
+    enabled: true // default toggle state
+};
 
-// Load settings
+// Load settings and initialize toggle
 async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
+
     if (Object.keys(extension_settings[extensionName]).length === 0) {
         Object.assign(extension_settings[extensionName], defaultSettings);
     }
+
+    // Wait for the settings HTML to be added to the DOM
+    await waitForElement('#autoquote-toggle');
+
+    $('#autoquote-toggle').prop('checked', extension_settings[extensionName].enabled);
+
+    $('#autoquote-toggle').on('change', function () {
+        const isEnabled = $(this).is(':checked');
+        extension_settings[extensionName].enabled = isEnabled;
+        console.debug("AutoQuote setting saved:", isEnabled);
+    });
 }
 
-// Modify user input before saving
-function modifyUserInput() {
-    let userInput = String($('#send_textarea').val());
+// Wait for a specific DOM element to exist (helper)
+function waitForElement(selector) {
+    return new Promise((resolve) => {
+        const interval = setInterval(() => {
+            if ($(selector).length > 0) {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 100);
+    });
+}
 
-    //modification
+// Modify user input before saving (Only if AutoQuote is enabled)
+function modifyUserInput() {
+    let userInput = String($('#send_textarea').val()).trim();
+
+    // Toggle command: //aq
+    if (userInput === "//aq") {
+        const currentState = extension_settings[extensionName].enabled;
+        const newState = !currentState;
+        extension_settings[extensionName].enabled = newState;
+        $('#autoquote-toggle').prop('checked', newState);
+        console.debug("AutoQuote toggled via //aq command:", newState);
+
+        $('#send_textarea').val('');
+        return false; // Signal to prevent send
+    }
+
+    if (!extension_settings[extensionName].enabled) {
+        console.debug("AutoQuote is OFF. No modifications applied.");
+        return true;
+    }
+
     userInput = userInput.replaceAll("\"", "");
     let arr = userInput.split("*");
     let output = "";
     let inside = false;
+
     for (let chunk of arr) {
         if (!inside) {
             let trimmed = chunk.trim();
@@ -34,36 +77,45 @@ function modifyUserInput() {
             output += remainingSpaces;
 
             inside = true;
-        }
-        else {
+        } else {
             chunk = '*' + chunk + '*';
             output += chunk;
             inside = false;
         }
     }
 
-    userInput = output; 
-    output = "";
+    $('#send_textarea').val(output);
+    console.debug("Modified User Input: ", output);
 
-    $('#send_textarea').val(userInput); // Update input field with modified text
-
-    console.debug("Modified User Input: ", userInput);
+    return true; // Allow sending
 }
 
-// Hook into the send button
+// Hook into the send button and textarea
 jQuery(async () => {
     const settingsHtml = await $.get(`${extensionFolderPath}/settings.html`);
     $("#extensions_settings").append(settingsHtml);
 
-    // Hook into the send button click
-    $("#send_button").on("click", modifyUserInput);  // Runs when sending message
+    await loadSettings();
 
-    // Hook into Enter key press
-    $("#send_textarea").on("keydown", function(event) {
-        if (event.key === "Enter" && !event.shiftKey) {
-            modifyUserInput();
+    // Click on send button
+    $("#send_button").on("click", function (e) {
+        const shouldSend = modifyUserInput();
+        if (!shouldSend) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
         }
     });
 
-    loadSettings();
+    // Pressing Enter in the textarea
+    $("#send_textarea").on("keydown", function (event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+            const shouldSend = modifyUserInput();
+            if (!shouldSend) {
+                event.preventDefault();
+                event.stopPropagation();
+                return false;
+            }
+        }
+    });
 });
